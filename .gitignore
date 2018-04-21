@@ -1,2 +1,4 @@
 .idea/
 venv/
+scratch/
+tests/.pytest_cache/
