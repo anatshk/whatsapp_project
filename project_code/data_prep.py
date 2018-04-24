@@ -13,7 +13,7 @@ def parse_message(msg):
     :param msg: string
     :return: time (datetime), sender (string) and content (string)
     """
-    time_sender_pattern = "[0-9]{1,2}\/[0-9]{1,2}\/[0-9]{2}, [0-9]{2}:[0-9]{2} - [a-zA-Z ,]+: "
+    time_sender_pattern = "[0-9]{1,2}[\/\.][0-9]{1,2}[\/\.][0-9]{2,4}, [0-9]{2}:[0-9]{2} - .+: "
     time_sender_match = re.match(time_sender_pattern, msg)
 
     if time_sender_match is None:
@@ -21,9 +21,18 @@ def parse_message(msg):
         return None, None, msg
 
     time_sender_match_group = time_sender_match.group()
-    time_sender = time_sender_match_group.split(' - ')
-    time = datetime.strptime(time_sender[0], '%m/%d/%y, %H:%M')
-    sender = time_sender[1][:-2]
+    split_by_dash = time_sender_match_group.split(' - ')
+    msg_time, msg_sender = split_by_dash[0:2]
+
+    # this is a heuristic to check if time is in mm/dd/yy format or dd.mm.yyyy format
+    if '/' in msg_time:
+        time = datetime.strptime(msg_time, '%m/%d/%y, %H:%M')
+    elif '.' in msg_time:
+        time = datetime.strptime(msg_time, '%d.%m.%Y, %H:%M')
+    else:
+        raise Exception('Unexpected date and time format - {}'.format(msg_time))
+
+    sender = msg_sender[:-2]  # remove ': ' from end of sender id
     content = msg[len(time_sender_match_group):]
     return time, sender, content
 
@@ -54,11 +63,40 @@ def read_file(path_to_file):
 class MessageDatabase(object):
     def __init__(self, path_to_file):
         self.df = read_file(path_to_file)
+        self.mapping_dictionary = {}
 
     def add_from_file(self, path_to_file):
+        """
+        Adds messages from file path_to_file. Checks for overlap and only adds unique messages.
+        Sorts by time and resets index when done.
+        Assumption - the new file is consistent, meaning the message time is monotonic (non-decreasing).
+        :param path_to_file: string, path to file in correct format
+        """
         new_df = read_file(path_to_file)
-        # TODO: check overlap between messages before loading
-        self.df.append(new_df)
+        # TODO: check overlap between messages before loading (using concat problematic, as no keys are available
+        # TODO: and message time sender and content must be checked)
+
+        # check time overlap
+        new_start_time = new_df['message_time'].iloc[0]
+        new_end_time = new_df['message_time'].iloc[-1]
+
+        curr_start_time = self.df['message_time'].iloc[0]
+        curr_end_time = self.df['message_time'].iloc[-1]
+
+        # TODO: find overlap between current () and new [] - either ( [ ) ] or [ ( ) ] or ( [ ] ) or [ ( ] )
+        # TODO: within overlap - check sender and content and only keep new messages with their timestamp
+
+        # self.df.append(new_df)
+        # TODO: sort by time and re-index
+
+    def map_senders(self, mapping_dictionary):
+        """
+        Updates self.df['message_sender'] column by using the mapping dictionary and replacing its keys with values in
+        that column. Updates self.mapping_dictionary.
+        :param mapping_dictionary: dict, keys are strings to be replaced with values (strings)
+        """
+        self.df['message_sender'] = self.df['message_sender'].map(mapping_dictionary)
+        self.mapping_dictionary.update(mapping_dictionary)
 
     def show_graphs(self):
         """
@@ -67,4 +105,13 @@ class MessageDatabase(object):
         # TODO: implement private methods for different statistics
         # TODO:(self._most_messages, self._most_words, self._active_time, etc.)
         # TODO: call them here to create a summary report
+        pass
+
+    def add_information(self):
+        """
+        Adds new columns of information for each message in self.df - number of words, sentiment, translation, etc.
+        """
+        # TODO: implement private methods for different new columns
+        # TODO:(number of words, sentiment, translation, etc.)
+        # TODO: call them here to create new columns
         pass
