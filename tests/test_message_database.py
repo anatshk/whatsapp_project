@@ -71,6 +71,49 @@ class TestMessageDatabase(TestCase):
         assert_frame_equal(new_db.df, expected_df)
         self.assertDictEqual(new_db.mapping_dictionary, change_names)
 
+    def test_return_new_not_in_current(self):
+        # TODO: create dfs with different overlaps and test
+        data_left = {
+            'message_content': ['a', 'b', 'c', 'd', 'e'],
+            'message_sender': ['a', 'b', 'c', 'd', 'e'],
+            'message_time': [
+                datetime(2000, 1, 1, 10, 0),
+                datetime(2000, 1, 1, 10, 5),
+                datetime(2000, 1, 1, 10, 10),
+                datetime(2000, 1, 1, 10, 15),
+                datetime(2000, 1, 1, 10, 20),
+            ]
+        }
+
+        data_right = {
+            'message_content': ['a', 'b', 'c', 'd', 'e'],
+            'message_sender': ['a', 'b', 'c', 'd', 'e'],
+            'message_time': [
+                datetime(2000, 1, 1, 9, 0),  # too early
+                datetime(2000, 1, 1, 9, 30),  # too early
+                datetime(2000, 1, 1, 10, 5),  # same time, different sender
+                datetime(2000, 1, 1, 10, 15),  # same time, same sender and content
+                datetime(2000, 1, 1, 10, 18),  # same sender, different time
+            ]
+        }
+
+        expected = pd.DataFrame({
+            'message_content': ['c', 'e'],
+            'message_sender': ['c', 'e'],
+            'message_time': [
+                datetime(2000, 1, 1, 10, 5),  # same time, different sender
+                datetime(2000, 1, 1, 10, 18),
+            ]
+        })
+
+        left = pd.DataFrame(data_left)
+        right = pd.DataFrame(data_right)
+        start = datetime(2000, 1, 1, 10, 5)
+        end = datetime(2000, 1, 1, 10, 18)
+        actual = MessageDatabase._return_new_not_in_current(left, right, start, end)
+        assert_frame_equal(actual, expected)
+        # TODO: run this test
+
     def test_add_from_file(self):
         pth1 = path.join(PATH_TO_DATA, 'tests', '1.txt')
         pth2 = path.join(PATH_TO_DATA, 'tests', '2.txt')
