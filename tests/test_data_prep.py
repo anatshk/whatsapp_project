@@ -1,6 +1,7 @@
+# encoding: utf-8
+
 from unittest import TestCase
 
-from datetime import datetime
 from os import path
 from pandas.testing import assert_frame_equal
 
@@ -37,6 +38,28 @@ class TestParseMessage(TestCase):
         self.assertIsNone(time)
         self.assertIsNone(sender)
         self.assertEqual(content, msg)
+
+    def test_different_date_format(self):
+        msg = '19.5.2016, 20:42 - Bob: blah blah'
+        expected_time = datetime(2016, 5, 19, 20, 42)
+        expected_sender = 'Bob'
+        expected_content = 'blah blah'
+
+        time, sender, content = parse_message(msg)
+        self.assertEqual(time, expected_time)
+        self.assertEqual(sender, expected_sender)
+        self.assertEqual(content, expected_content)
+
+    def test_non_english_in_username(self):
+        msg = u'19.5.2016, 20:42 - אדי: איגור מדינה שהנוכחות שלי בה תשמח אותך מאוד'
+        expected_time = datetime(2016, 5, 19, 20, 42)
+        expected_sender = u'אדי'
+        expected_content = u'איגור מדינה שהנוכחות שלי בה תשמח אותך מאוד'
+
+        time, sender, content = parse_message(msg)
+        self.assertEqual(time, expected_time)
+        self.assertEqual(sender, expected_sender)
+        self.assertEqual(content, expected_content)
 
 
 class TestReadFile(TestCase):
