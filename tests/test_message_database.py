@@ -257,6 +257,7 @@ class TestMessageDatabase(TestCase):
             datetime(2017, 6, 16, 14, 3),
             datetime(2017, 6, 16, 14, 3),
             datetime(2017, 6, 16, 14, 4),
+            datetime(2017, 6, 16, 14, 5),
             datetime(2017, 6, 16, 15, 8),
             datetime(2017, 6, 16, 15, 10),
             datetime(2017, 6, 16, 15, 14),
@@ -268,6 +269,7 @@ class TestMessageDatabase(TestCase):
             'charles, you know who he is',
             'charles, you know who he is',
             'bob',
+            'bob',
             'dave',
             'bob',
             'dave'
@@ -278,6 +280,7 @@ class TestMessageDatabase(TestCase):
             'first message row',
             'second message row',
             'charles is done speaking...',
+            'hi',
             'hello again',
             'what did i miss?',
             'nothing',

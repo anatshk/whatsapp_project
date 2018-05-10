@@ -77,8 +77,8 @@ class MessageDatabase(object):
         :param path_to_file: string, path to file in correct format
         """
         new_df = read_file(path_to_file)
-        # TODO: check overlap between messages before loading (using concat problematic, as no keys are available
-        # TODO: and message time sender and content must be checked)
+        # check overlap between messages before loading (using concat problematic, as no keys are available
+        # and message time sender and content must be checked)
 
         # check time overlap
         new_start_time = new_df[TIME_COL].iloc[0]
@@ -87,8 +87,8 @@ class MessageDatabase(object):
         curr_start_time = self.df[TIME_COL].iloc[0]
         curr_end_time = self.df[TIME_COL].iloc[-1]
 
-        # TODO: find overlap between current () and new [] - either ( [ ) ] or [ ( ) ] or ( [ ] ) or [ ( ] )
-        # TODO: within overlap - check sender and content and only keep new messages with their timestamp
+        # find overlap between current () and new [] - either ( [ ) ] or [ ( ) ] or ( [ ] ) or [ ( ] )
+        # within overlap - check sender and content and only keep new messages with their timestamp
 
         if new_start_time <= curr_end_time:
             if new_end_time > curr_end_time:
@@ -98,18 +98,25 @@ class MessageDatabase(object):
                 rows_to_add_from_new = new_df[new_df[TIME_COL] > curr_end_time]
             else:
                 # new time range is included in current time range ( [ ] )
-                pass
+                rows_to_add_from_overlap = \
+                    MessageDatabase._return_new_not_in_current_overlap(self.df, new_df, new_start_time, new_end_time)
+                rows_to_add_from_new = pd.DataFrame(data={TIME_COL: [], SENDER_COL: [], CONTENT_COL: []})
         else:
             if new_end_time > curr_end_time:
                 # current time range is included in new time range [ ( ) ]
-                pass
+                rows_to_add_from_overlap = \
+                    MessageDatabase._return_new_not_in_current_overlap(self.df, new_df, curr_start_time, curr_end_time)
+                rows_to_add_from_new = pd.concat([new_df[new_df[TIME_COL] > curr_end_time],
+                                                  new_df[new_df[TIME_COL] < curr_start_time]])
             else:
                 # overlap is between start of current and end of new [ ( ] )
-                pass
+                rows_to_add_from_overlap = \
+                    MessageDatabase._return_new_not_in_current_overlap(self.df, new_df, curr_start_time, new_end_time)
+                rows_to_add_from_new = new_df[new_df[TIME_COL] < curr_start_time]
 
-
-        self.df.append(rows_to_add)
-        # TODO: sort by time and re-index
+        self.df = pd.concat([self.df, rows_to_add_from_overlap, rows_to_add_from_new], ignore_index=True)
+        self.df.sort_values(TIME_COL, inplace=True)
+        self.df.reindex()
 
     @staticmethod
     def _return_new_not_in_current_overlap(curr_df, new_df, overlap_start, overlap_end):
@@ -141,7 +148,8 @@ class MessageDatabase(object):
         new_not_in_curr = ~new_overlap['comparison'].isin(curr_overlap['comparison'])
 
         new_overlap = new_overlap[new_not_in_curr]
-        return new_overlap.drop('comparison', axis=1)
+        new_overlap.drop('comparison', axis=1, inplace=True)
+        return new_overlap
 
     def map_senders(self, mapping_dictionary):
         """
