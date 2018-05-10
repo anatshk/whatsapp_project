@@ -5,6 +5,10 @@ from datetime import datetime
 
 PATH_TO_DATA = r'C:\Users\Anat\Documents\whatsapp_project_data'
 
+TIME_COL = 'message_time'
+SENDER_COL = 'message_sender'
+CONTENT_COL = 'message_content'
+
 
 def parse_message(msg):
     """
@@ -41,7 +45,7 @@ def read_file(path_to_file):
     """
     Reads message file, calls parse_message and populates DataFrame.
     :param path_to_file: string
-    :return: DataFrame with columns of 'message_time', 'message_sender', 'message_content'
+    :return: DataFrame with columns of TIME_COL, SENDER_COL, CONTENT_COL
     """
 
     data_list = []  # will be a list of tuples (time, sender, content)
@@ -56,7 +60,7 @@ def read_file(path_to_file):
 
     time_list, sender_list, content_list = zip(*data_list)
     return pd.DataFrame(
-        data={'message_time': time_list, 'message_sender': sender_list, 'message_content': content_list},
+        data={TIME_COL: time_list, SENDER_COL: sender_list, CONTENT_COL: content_list},
     )
 
 
@@ -77,11 +81,11 @@ class MessageDatabase(object):
         # TODO: and message time sender and content must be checked)
 
         # check time overlap
-        new_start_time = new_df['message_time'].iloc[0]
-        new_end_time = new_df['message_time'].iloc[-1]
+        new_start_time = new_df[TIME_COL].iloc[0]
+        new_end_time = new_df[TIME_COL].iloc[-1]
 
-        curr_start_time = self.df['message_time'].iloc[0]
-        curr_end_time = self.df['message_time'].iloc[-1]
+        curr_start_time = self.df[TIME_COL].iloc[0]
+        curr_end_time = self.df[TIME_COL].iloc[-1]
 
         # TODO: find overlap between current () and new [] - either ( [ ) ] or [ ( ) ] or ( [ ] ) or [ ( ] )
         # TODO: within overlap - check sender and content and only keep new messages with their timestamp
@@ -89,7 +93,9 @@ class MessageDatabase(object):
         if new_start_time <= curr_end_time:
             if new_end_time > curr_end_time:
                 # overlap is between start of new and end of current ( [ ) ]
-                rows_to_add = MessageDatabase._return_new_not_in_current(self.df, new_df, new_start_time, curr_end_time)
+                rows_to_add_from_overlap = \
+                    MessageDatabase._return_new_not_in_current_overlap(self.df, new_df, new_start_time, curr_end_time)
+                rows_to_add_from_new = new_df[new_df[TIME_COL] > curr_end_time]
             else:
                 # new time range is included in current time range ( [ ] )
                 pass
@@ -106,7 +112,7 @@ class MessageDatabase(object):
         # TODO: sort by time and re-index
 
     @staticmethod
-    def _return_new_not_in_current(curr_df, new_df, overlap_start, overlap_end):
+    def _return_new_not_in_current_overlap(curr_df, new_df, overlap_start, overlap_end):
         """
         Returns all rows from new df, within time overlap, that don't appear in current df.
         :param curr_df: DataFrame
@@ -116,8 +122,8 @@ class MessageDatabase(object):
         :return: DataFrame, rows from new_df in overlap
         """
         # create mask of overlap time range in both dfs
-        curr_mask = (curr_df['message_date'] > overlap_start) & (curr_df['message_date'] <= overlap_end)
-        new_mask = (new_df['message_date'] > overlap_start) & (new_df['message_date'] <= overlap_end)
+        curr_mask = (curr_df[TIME_COL] >= overlap_start) & (curr_df[TIME_COL] <= overlap_end)
+        new_mask = (new_df[TIME_COL] >= overlap_start) & (new_df[TIME_COL] <= overlap_end)
 
         # extract overlap from both dfs
         curr_overlap = curr_df.loc[curr_mask]
@@ -125,22 +131,25 @@ class MessageDatabase(object):
 
         # create comparison column - time, sender, content
         def create_comparison_column(row):
-            return '-'.join([str(row['message_time']), row['message_sender'], row['message_content']])
+            return '-'.join([str(row[TIME_COL]), row[SENDER_COL], row[CONTENT_COL]])
 
+        # TODO (low priority): solve the SettingWithCopyWarning here
         curr_overlap['comparison'] = curr_overlap.apply(create_comparison_column, axis=1)
         new_overlap['comparison'] = new_overlap.apply(create_comparison_column, axis=1)
 
-        # return only rows in new_overlap whose values in the 'comparison' column
+        # return only rows in new_overlap whose values are NOT in the 'comparison' column of current
+        new_not_in_curr = ~new_overlap['comparison'].isin(curr_overlap['comparison'])
 
-        return []
+        new_overlap = new_overlap[new_not_in_curr]
+        return new_overlap.drop('comparison', axis=1)
 
     def map_senders(self, mapping_dictionary):
         """
-        Updates self.df['message_sender'] column by using the mapping dictionary and replacing its keys with values in
+        Updates self.df[SENDER_COL] column by using the mapping dictionary and replacing its keys with values in
         that column. Updates self.mapping_dictionary.
         :param mapping_dictionary: dict, keys are strings to be replaced with values (strings)
         """
-        self.df['message_sender'] = self.df['message_sender'].map(mapping_dictionary)
+        self.df[SENDER_COL] = self.df[SENDER_COL].map(mapping_dictionary)
         self.mapping_dictionary.update(mapping_dictionary)
 
     def show_graphs(self):
