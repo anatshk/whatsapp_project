@@ -2,12 +2,16 @@ import pandas as pd
 import re
 
 from datetime import datetime
+from os import path
 
 PATH_TO_DATA = r'C:\Users\Anat\Documents\whatsapp_project_data'
 
 TIME_COL = 'message_time'
 SENDER_COL = 'message_sender'
 CONTENT_COL = 'message_content'
+
+# STOPWORDS = pd.read_csv(path.join(PATH_TO_DATA, 'stopwords.csv'), encoding='ANSI')
+# STOPWORDS = STOPWORDS[STOPWORDS['POS'] == 'preposition']['Undotted']
 
 
 def parse_message(msg):
@@ -177,3 +181,54 @@ class MessageDatabase(object):
         # TODO:(number of words, sentiment, translation, etc.)
         # TODO: call them here to create new columns
         pass
+
+    def _count_words(self, remove_stopwords=False):
+        """
+        Count words in MESSAGE_COL, either with or without stopwords.
+        :param remove_stopwords: whether to remove stopwords - currently not supported
+        :return: series of word counts per message
+        """
+
+        def count(row):
+            return len(row[CONTENT_COL].split(' '))
+
+        return self.df.apply(count, axis=1)
+
+    def _count_special_punctuation(self):
+        """
+        Count special punctuation in MESSAGE_COL - ?, !, etc.
+        :return: series of punctuation counts per message
+        """
+        PUNCTUATION_MARKS = '?!'
+
+        def count(row):
+            return sum([row[CONTENT_COL].count(mark) for mark in PUNCTUATION_MARKS])
+
+        return self.df.apply(count, axis=1)
+
+    def _time_bin(self):
+        """
+        Bins time into 1h blocks 00:00-00:59, 01:00-01:59, ... 23:00-23:59
+        :return: series of binned time
+        """
+
+        def bin_time(row):
+            return '{}:00'.format(row[TIME_COL].hour)
+
+        return self.df.apply(bin_time, axis=1)
+
+    def _time_diff(self):
+        """
+        Time difference between each message and the previous one, in minutes.
+        First message in database will have NaN.
+        :return: series of time differences in minutes between consecutive messages.
+        """
+
+        diff = self.df[TIME_COL] - self.df[TIME_COL].shift(1)
+
+        def convert_to_minutes(row):
+            if not isinstance(row, pd.NaT):
+                return row.hour * 60 + row.minute
+            return pd.nan
+
+        return diff.apply(convert_to_minutes)

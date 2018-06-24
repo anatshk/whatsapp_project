@@ -2,7 +2,7 @@ from unittest import TestCase
 
 from datetime import datetime
 from os import path
-from pandas.testing import assert_frame_equal
+from pandas.testing import assert_frame_equal, assert_series_equal
 
 import pandas as pd
 
@@ -291,3 +291,31 @@ class TestMessageDatabase(TestCase):
                   'message_content': expected_content},
         )
         assert_frame_equal(db.df, expected_df)
+
+    def test_count_words(self):
+        pth = path.join(PATH_TO_DATA, 'tests', '1.txt')
+        db = MessageDatabase(pth)
+        word_count = db._count_words()
+        expected = pd.Series([1, 1, 3, 3, 4, 1, 2])
+        assert_series_equal(word_count, expected)
+
+    def test_count_special_punctuation(self):
+        pth = path.join(PATH_TO_DATA, 'tests', '2.txt')
+        db = MessageDatabase(pth)
+        punctuation_count = db._count_special_punctuation()
+        expected = pd.Series([0, 0, 1, 0, 1])
+        assert_series_equal(punctuation_count, expected)
+
+    def test_time_bin(self):
+        pth = path.join(PATH_TO_DATA, 'tests', '2.txt')
+        db = MessageDatabase(pth)
+        time_bin = db._time_bin()
+        expected = pd.Series(['14:00', '14:00', '15:00', '15:00', '15:00'])
+        assert_series_equal(time_bin, expected)
+
+    def test_time_diff(self):
+        pth = path.join(PATH_TO_DATA, 'tests', '2.txt')
+        db = MessageDatabase(pth)
+        time_diff = db._time_diff()
+        expected = pd.Series([pd.nan, 1, 63, 2, 4])
+        assert_series_equal(time_diff, expected)
