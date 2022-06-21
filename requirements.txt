@@ -5,7 +5,7 @@ colorama==0.3.9
 googletrans==2.2.0
 idna==2.6
 more-itertools==4.1.0
-numpy==1.14.2
+numpy==1.22.0
 pandas==0.22.0
 pluggy==0.6.0
 py==1.5.3
